@@ -46,6 +46,21 @@ def serve_static(path):
 def serve_model(path):
     return send_from_directory('model', path)
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/haru')
+def haru():
+    return render_template('haru.html')
+
+@app.route('/kei')
+def kei():
+    return render_template('kei.html')
+
+@app.route('/realtime')
+def realtime():
+    return render_template('realtime.html')
 
 def save_conversation(user_input: str, ai_response: str):
     conversation = {
