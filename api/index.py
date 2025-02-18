@@ -1,20 +1,16 @@
-from flask import Flask, request, send_from_directory, jsonify
+from flask import Flask, request, send_from_directory, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
 import os
-import base64
-from dotenv import load_dotenv
+import tempfile
 from datetime import datetime
 import json
 from pathlib import Path
-import tempfile
-import os
 
-load_dotenv()
-
-# Flask 앱 초기화 - static 설정을 명확하게
-# app = Flask(__name__, static_url_path='', static_folder='front')
-app = Flask(__name__, static_folder='../front', template_folder='../front')
+app = Flask(__name__, 
+            static_folder='../front',  # front 디렉토리를 static 폴더로 지정
+            static_url_path='',        # 정적 파일의 URL 경로를 루트로 설정
+            template_folder='../front') # front 디렉토리를 template 폴더로도 지정
 CORS(app)
 
 # 기본 경로 설정
@@ -22,33 +18,6 @@ BASE_DIR = Path(__file__).resolve().parent
 CONVERSATIONS_FILE = BASE_DIR / "conversations.json"
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-@app.route('/model/<path:filename>')
-def model_files(filename):
-    return send_from_directory('../model', filename)
-
-# @app.route('/')
-# def index():
-#     try:
-#         return send_from_directory(app.static_folder, 'index.html')
-#     except Exception as e:
-#         print(f"Error serving index.html: {str(e)}")
-#         return "Error loading page", 500
-
-
-@app.route('/favicon.ico')
-def favicon():
-    return "", 204
-
-
-@app.route('/front/<path:path>')
-def serve_static(path):
-    return send_from_directory('front', path)
-
-
-@app.route('/model/<path:path>')
-def serve_model(path):
-    return send_from_directory('model', path)
 
 @app.route('/')
 def index():
@@ -65,6 +34,18 @@ def kei():
 @app.route('/realtime')
 def realtime():
     return render_template('realtime.html')
+
+@app.route('/model/<path:filename>')
+def serve_model(filename):
+    return send_from_directory('../model', filename)
+
+@app.route('/css/<path:filename>')
+def serve_css(filename):
+    return send_from_directory('../front/css', filename)
+
+@app.route('/js/<path:filename>')
+def serve_js(filename):
+    return send_from_directory('../front/js', filename)
 
 def save_conversation(user_input: str, ai_response: str):
     conversation = {
@@ -89,7 +70,6 @@ def save_conversation(user_input: str, ai_response: str):
     except Exception as e:
         print(f"대화 저장 중 오류 발생: {str(e)}")
 
-
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -97,16 +77,14 @@ def chat():
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
-        character = request.form.get('character', 'kei')  # 기본값은 'kei'
+        character = request.form.get('character', 'kei')
         print(f"Received file: {audio_file.filename}, Character: {character}")
 
-        # 임시 파일로 저장
         with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
             temp_file.write(audio_file.read())
             temp_file_path = temp_file.name
 
         try:
-            # Whisper API로 음성을 텍스트로 변환
             with open(temp_file_path, 'rb') as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
@@ -117,7 +95,6 @@ def chat():
             user_text = transcription
             print(f"Transcribed text: {user_text}")
 
-            # 캐릭터별 시스템 메시지 설정
             system_messages = {
                 'kei': "당신은 창의적이고 현대적인 감각을 지닌 아티스트 캐릭터로, 독특한 은발과 에메랄드빛 눈동자가 특징입니다. 사용자의 이야기에 예술적 감성으로 공감하면서도 실용적인 관점을 놓치지 않고, 따뜻하고 세련된 톤으로 2문장 이내의 답변을 제공해주세요.",
                 'haru': "당신은 비즈니스 환경에서 일하는 전문적이고 자신감 있는 여성 캐릭터입니다. 사용자의 고민에 공감하면서도 실용적인 관점에서 명확하고 간단한 해결책을 2문장 이내로 제시해주세요.",
@@ -125,7 +102,6 @@ def chat():
 
             system_message = system_messages.get(character, system_messages['kei'])
 
-            # gpt-4o-audio-preview로 텍스트와 음성 동시 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
                 modalities=["text", "audio"],
@@ -139,11 +115,9 @@ def chat():
                 ]
             )
 
-            # 응답 처리
             ai_text = chat_response.choices[0].message.audio.transcript
             ai_audio = chat_response.choices[0].message.audio.data
 
-            # 대화 저장
             save_conversation(user_text, ai_text)
 
             return jsonify({
@@ -164,10 +138,4 @@ def chat():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', port=8000, debug=True)
-if __name__ == '__main__':
-    app.run(debug=True)
-else:
-    app = app  # for Vercel
+app = app  # for Vercel
