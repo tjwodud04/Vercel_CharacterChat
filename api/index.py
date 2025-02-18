@@ -1,4 +1,4 @@
-from flask import Flask, request, send_from_directory, jsonify, render_template, url_for
+from flask import Flask, request, send_from_directory, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import os
@@ -8,10 +8,12 @@ from datetime import datetime
 import json
 from pathlib import Path
 import tempfile
+import os
 
 load_dotenv()
 
-# Flask 앱 초기화 - static 및 template 설정
+# Flask 앱 초기화 - static 설정을 명확하게
+# app = Flask(__name__, static_url_path='', static_folder='front')
 app = Flask(__name__, static_folder='../front', template_folder='../front')
 CORS(app)
 
@@ -21,20 +23,33 @@ CONVERSATIONS_FILE = BASE_DIR / "conversations.json"
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ 정적 파일(이미지, CSS, JS) 제공 라우트
 @app.route('/model/<path:filename>')
 def model_files(filename):
     return send_from_directory('../model', filename)
 
-@app.route('/css/<path:filename>')
-def css_files(filename):
-    return send_from_directory('../front/css', filename)
+# @app.route('/')
+# def index():
+#     try:
+#         return send_from_directory(app.static_folder, 'index.html')
+#     except Exception as e:
+#         print(f"Error serving index.html: {str(e)}")
+#         return "Error loading page", 500
 
-@app.route('/js/<path:filename>')
-def js_files(filename):
-    return send_from_directory('../front/js', filename)
 
-# ✅ HTML 페이지 라우트 (템플릿 렌더링)
+@app.route('/favicon.ico')
+def favicon():
+    return "", 204
+
+
+@app.route('/front/<path:path>')
+def serve_static(path):
+    return send_from_directory('front', path)
+
+
+@app.route('/model/<path:path>')
+def serve_model(path):
+    return send_from_directory('model', path)
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -51,7 +66,6 @@ def kei():
 def realtime():
     return render_template('realtime.html')
 
-# ✅ 대화 기록 저장
 def save_conversation(user_input: str, ai_response: str):
     conversation = {
         "timestamp": datetime.now().isoformat(),
@@ -75,7 +89,7 @@ def save_conversation(user_input: str, ai_response: str):
     except Exception as e:
         print(f"대화 저장 중 오류 발생: {str(e)}")
 
-# ✅ AI 챗 API 엔드포인트
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -105,13 +119,13 @@ def chat():
 
             # 캐릭터별 시스템 메시지 설정
             system_messages = {
-                'kei': "당신은 창의적이고 현대적인 감각을 지닌 아티스트 캐릭터입니다.",
-                'haru': "당신은 비즈니스 환경에서 일하는 전문적인 캐릭터입니다.",
+                'kei': "당신은 창의적이고 현대적인 감각을 지닌 아티스트 캐릭터로, 독특한 은발과 에메랄드빛 눈동자가 특징입니다. 사용자의 이야기에 예술적 감성으로 공감하면서도 실용적인 관점을 놓치지 않고, 따뜻하고 세련된 톤으로 2문장 이내의 답변을 제공해주세요.",
+                'haru': "당신은 비즈니스 환경에서 일하는 전문적이고 자신감 있는 여성 캐릭터입니다. 사용자의 고민에 공감하면서도 실용적인 관점에서 명확하고 간단한 해결책을 2문장 이내로 제시해주세요.",
             }
 
             system_message = system_messages.get(character, system_messages['kei'])
 
-            # GPT-4o를 사용한 응답 생성
+            # gpt-4o-audio-preview로 텍스트와 음성 동시 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
                 modalities=["text", "audio"],
@@ -125,6 +139,7 @@ def chat():
                 ]
             )
 
+            # 응답 처리
             ai_text = chat_response.choices[0].message.audio.transcript
             ai_audio = chat_response.choices[0].message.audio.data
 
@@ -145,9 +160,13 @@ def chat():
 
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-# ✅ Vercel 환경 설정
+
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=8000, debug=True)
 if __name__ == '__main__':
     app.run(debug=True)
 else:
