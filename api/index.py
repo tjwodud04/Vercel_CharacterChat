@@ -80,15 +80,18 @@ def chat():
         character = request.form.get('character', 'kei')
         print(f"Received file: {audio_file.filename}, Character: {character}")
 
-        with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
-            temp_file.write(audio_file.read())
-            temp_file_path = temp_file.name
+        # with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
+        #     temp_file.write(audio_file.read())
+        #     temp_file_path = temp_file.name
+        # 파일을 메모리에서 직접 읽기
+        audio_data = audio_file.read()
 
         try:
             with open(temp_file_path, 'rb') as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
-                    file=audio,
+                    # file=audio,
+                    file=("audio.webm", audio_data, audio_file.content_type),
                     response_format="text"
                 )
 
@@ -125,12 +128,15 @@ def chat():
                 "ai_text": ai_text,
                 "audio": ai_audio,
             })
-
-        finally:
-            try:
-                os.unlink(temp_file_path)
-            except Exception as e:
-                print(f"Warning: Failed to delete temporary file: {e}")
+                    
+        # finally:
+        #     try:
+        #         os.unlink(temp_file_path)
+        #     except Exception as e:
+        #         print(f"Warning: Failed to delete temporary file: {e}")
+        except Exception as e:
+            print(f"Error in processing: {str(e)}")
+            raise e
 
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
