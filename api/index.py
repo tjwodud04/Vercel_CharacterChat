@@ -120,7 +120,7 @@ def chat():
             ai_text = chat_response.choices[0].message.audio.transcript
             ai_audio = chat_response.choices[0].message.audio.data
 
-            save_conversation(user_text, ai_text)
+            # save_conversation(user_text, ai_text)
 
             return jsonify({
                 "user_text": user_text,
