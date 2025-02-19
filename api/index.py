@@ -90,7 +90,8 @@ def chat():
             with open(temp_filename, 'rb') as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
-                    file=audio,
+                    # file=audio,
+                    file=("audio.webm", audio_data, "audio/webm"),  # MIME 타입 지정
                     response_format="text"
                 )
 
@@ -120,7 +121,7 @@ def chat():
             ai_text = chat_response.choices[0].message.audio.transcript
             ai_audio = chat_response.choices[0].message.audio.data
 
-            # save_conversation(user_text, ai_text)
+            save_conversation(user_text, ai_text)
 
             return jsonify({
                 "user_text": user_text,
