@@ -2,7 +2,7 @@ from flask import Flask, request, send_from_directory, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
 import os
-import tempfile
+import uuid
 from datetime import datetime
 import json
 from pathlib import Path
@@ -78,20 +78,19 @@ def chat():
 
         audio_file = request.files['audio']
         character = request.form.get('character', 'kei')
-        print(f"Received file: {audio_file.filename}, Character: {character}")
 
-        # with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
-        #     temp_file.write(audio_file.read())
-        #     temp_file_path = temp_file.name
-        # 파일을 메모리에서 직접 읽기
-        audio_data = audio_file.read()
-
+        # 임시 파일 생성시 unique한 이름 사용
+        temp_filename = f"/tmp/audio_{uuid.uuid4()}.webm"
+        
         try:
-            with open(temp_file_path, 'rb') as audio:
+            # 파일 쓰기
+            audio_file.save(temp_filename)
+            
+            # Whisper API 호출
+            with open(temp_filename, 'rb') as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
-                    # file=audio,
-                    file=("audio.webm", audio_data, audio_file.content_type),
+                    file=audio,
                     response_format="text"
                 )
 
@@ -128,15 +127,15 @@ def chat():
                 "ai_text": ai_text,
                 "audio": ai_audio,
             })
-                    
-        # finally:
-        #     try:
-        #         os.unlink(temp_file_path)
-        #     except Exception as e:
-        #         print(f"Warning: Failed to delete temporary file: {e}")
-        except Exception as e:
-            print(f"Error in processing: {str(e)}")
-            raise e
+
+        finally:
+            # 임시 파일 삭제 시도
+            try:
+                if os.path.exists(temp_filename):
+                    os.remove(temp_filename)
+                print(f"Temporary file {temp_filename} deleted successfully")
+            except Exception as e:
+                print(f"Failed to delete temp file: {e}")
 
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
