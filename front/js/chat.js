@@ -4,6 +4,7 @@ class Live2DManager {
         this.app = null;
         this.canvas = document.getElementById('live2d-canvas');
         window.PIXI = PIXI;
+        this.isInitialized = false; // added
         console.log('Live2DManager initialized');
     }
 
@@ -34,6 +35,14 @@ class Live2DManager {
 
             this.app.stage.addChild(this.model);
             this.setExpression('neutral');
+            
+            // 초기화 완료 상태 설정
+            this.isInitialized = true; // added
+            
+            // 초기화 완료 이벤트 발생
+            const event = new CustomEvent('live2dInitialized');
+            document.dispatchEvent(event);
+            
         } catch (error) {
             console.error('Live2D model loading failed:', error);
         }
@@ -207,169 +216,55 @@ class AudioManager {
     }
 }
 
-// class AudioManager {
-//     constructor() {
-//         this.mediaRecorder = null;
-//         this.audioChunks = [];
-//         this.isRecording = false;
-//         this.audioContext = null;
-//         this.analyser = null;
-//         this.initAudioContext();
-//         console.log('AudioManager initialized');
-//     }
-
-//     initAudioContext() {
-//         try {
-//             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-//             this.analyser = this.audioContext.createAnalyser();
-//             console.log('Audio context initialized successfully');
-//         } catch (error) {
-//             console.error('Failed to initialize audio context:', error);
-//         }
-//     }
-
-//     // async startRecording() {
-//     //     try {
-//     //         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-//     //             throw new Error('Media Devices API not supported');
-//     //         }
-
-//     //         const stream = await navigator.mediaDevices.getUserMedia({
-//     //             audio: {
-//     //                 channelCount: 1,
-//     //                 sampleRate: 16000
-//     //             },
-//     //             video: false
-//     //         });
-//     //         console.log('Audio stream obtained successfully');
-
-//     //         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-//     //             ? 'audio/webm;codecs=opus'
-//     //             : 'audio/webm';
-//     //         console.log('Using MIME type:', mimeType);
-
-//     //         this.mediaRecorder = new MediaRecorder(stream, {
-//     //             mimeType: mimeType,
-//     //             audioBitsPerSecond: 128000
-//     //         });
-
-//     //         this.mediaRecorder.ondataavailable = (event) => {
-//     //             if (event.data.size > 0) {
-//     //                 this.audioChunks.push(event.data);
-//     //                 console.log('Audio chunk received:', event.data.size, 'bytes');
-//     //             }
-//     //         };
-
-//     //         if (this.audioContext && this.analyser) {
-//     //             const source = this.audioContext.createMediaStreamSource(stream);
-//     //             source.connect(this.analyser);
-//     //             console.log('Audio source connected to analyser');
-//     //         }
-
-//     //         this.mediaRecorder.start(100);
-//     //         this.isRecording = true;
-//     //         console.log('Recording started');
-//     //         return true;
-//     //     } catch (error) {
-//     //         console.error('Failed to start recording:', error);
-//     //         alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
-//     //         return false;
-//     //     }
-//     // }
-
-//     async startRecording() {
-//         try {
-//             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-//                 throw new Error('Media Devices API not supported');
-//             }
-    
-//             const stream = await navigator.mediaDevices.getUserMedia({
-//                 audio: {
-//                     channelCount: 1,
-//                     sampleRate: 16000
-//                 },
-//                 video: false
-//             });
-//             console.log('Audio stream obtained successfully');
-    
-//             // Explicitly set to use WAV format
-//             const options = {
-//                 audioBitsPerSecond: 128000,
-//                 mimeType: 'audio/wav'
-//             };
-    
-//             // Fall back to default if WAV is not supported
-//             if (!MediaRecorder.isTypeSupported('audio/wav')) {
-//                 console.log('WAV not supported, falling back to default format');
-//                 this.mediaRecorder = new MediaRecorder(stream);
-//             } else {
-//                 this.mediaRecorder = new MediaRecorder(stream, options);
-//             }
-    
-//             this.mediaRecorder.ondataavailable = (event) => {
-//                 if (event.data.size > 0) {
-//                     this.audioChunks.push(event.data);
-//                     console.log('Audio chunk received:', event.data.size, 'bytes', 'type:', event.data.type);
-//                 }
-//             };
-    
-//             if (this.audioContext && this.analyser) {
-//                 const source = this.audioContext.createMediaStreamSource(stream);
-//                 source.connect(this.analyser);
-//                 console.log('Audio source connected to analyser');
-//             }
-    
-//             this.mediaRecorder.start(100);
-//             this.isRecording = true;
-//             console.log('Recording started with format:', this.mediaRecorder.mimeType);
-//             return true;
-    
-//         } catch (error) {
-//             console.error('Failed to start recording:', error);
-//             alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
-//             return false;
-//         }
-//     }
-
-    
-//     stopRecording() {
-//         if (this.mediaRecorder && this.isRecording) {
-//             console.log('Stopping recording');
-//             this.mediaRecorder.stop();
-//             this.isRecording = false;
-//             this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
-//         }
-//     }
-
-//     getAudioBlob() {
-//         const blob = new Blob(this.audioChunks, {
-//             type: this.mediaRecorder ? this.mediaRecorder.mimeType : 'audio/webm'
-//         });
-//         console.log('Audio blob created:', blob.size, 'bytes');
-//         this.audioChunks = [];
-//         return blob;
-//     }
-
-//     getAudioData() {
-//         if (!this.analyser) {
-//             console.warn('Analyser not initialized');
-//             return new Uint8Array();
-//         }
-//         const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-//         this.analyser.getByteTimeDomainData(dataArray);
-//         return dataArray;
-//     }
-// }
-
 class ChatManager {
     constructor(characterType = 'kei') {  // 기본값으로 'kei' 설정
         this.chatHistory = document.getElementById('chatHistory');
         this.isPlaying = false;
         this.conversationHistory = []; // Store conversation history for context
         this.characterType = characterType;  // 캐릭터 타입 저장
+        this.initialized = false; // added
         console.log('ChatManager initialized');
     }
 
+    async playGreeting() {
+        if (this.initialized) return;
+        
+        try {
+            const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
+            
+            // 서버에 인삿말 요청 전송
+            const formData = new FormData();
+            formData.append('character', this.characterType);
+            formData.append('greeting', 'true');
+            
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Greeting request failed');
+            
+            const data = await response.json();
+            
+            // 채팅창에 메시지 추가
+            this.addMessage('ai', greetingMessage);
+            
+            // 음성 재생 및 립싱크
+            if (data.audio) {
+                this.isPlaying = true;
+                live2dManager.setExpression('speaking');
+                await live2dManager.playAudioWithLipSync(data.audio);
+                live2dManager.setExpression('neutral');
+                this.isPlaying = false;
+            }
+            
+            this.initialized = true;
+        } catch (error) {
+            console.error('Failed to play greeting:', error);
+        }
+    }
+
+    
     addMessage(role, message) {
         console.log(`Adding ${role} message:`, message);
 
@@ -488,6 +383,14 @@ document.addEventListener('DOMContentLoaded', () => {
     recordButton.addEventListener('click', handleRecording);
 
     setInterval(updateLipSync, 50);
+    
+    // Live2D 초기화 완료 이벤트 리스너 추가
+    document.addEventListener('live2dInitialized', () => {
+        // 약간의 지연을 주어 모델이 완전히 표시된 후 인삿말 시작
+        setTimeout(() => {
+            chatManager.playGreeting();
+        }, 1000);
+    });
     console.log('Application initialization completed');
 });
 
