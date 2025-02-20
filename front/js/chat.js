@@ -250,11 +250,11 @@ class AudioManager {
 }
 
 class ChatManager {
-     constructor(characterType = 'kei') {  // 기본값으로 'kei' 설정
+    constructor(characterType = 'kei') {  // 기본값으로 'kei' 설정
         this.chatHistory = document.getElementById('chatHistory');
         this.isPlaying = false;
         this.conversationHistory = []; // Store conversation history for context
-         this.characterType = characterType;  // 캐릭터 타입 저장
+        this.characterType = characterType;  // 캐릭터 타입 저장
         console.log('ChatManager initialized');
     }
 
@@ -277,12 +277,6 @@ class ChatManager {
                 '/model/momose/profile.jpg'
             ) : '';
             profile.appendChild(characterImg);
-
-            // AI 뱃지 추가
-            // const aiBadge = document.createElement('span');
-            // aiBadge.className = 'ai-badge';
-            // aiBadge.textContent = 'AI';
-            // profile.appendChild(aiBadge);
 
             messageElement.appendChild(profile);
         }
@@ -315,34 +309,40 @@ class ChatManager {
         });
     }
 
-async sendAudioToServer(audioBlob) {
-    try {
-        console.log('Preparing to send audio to server');
-        console.log('Audio blob type:', audioBlob.type);
-        console.log('Audio blob size:', audioBlob.size);
-        
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'audio.webm');
-        formData.append('character', 'kei');  // 캐릭터 정보 추가
+    async sendAudioToServer(audioBlob) {
+        try {
+            console.log('Preparing to send audio to server');
+            console.log('Audio blob type:', audioBlob.type);
+            console.log('Audio blob size:', audioBlob.size);
+            
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'audio.webm');
+            formData.append('character', this.characterType);  // 캐릭터 정보 추가
 
-        console.log('Sending request to server');
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            body: formData
-        });
+            console.log('Sending request to server');
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                body: formData
+            });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server error response:', errorText);
-            throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error response:', errorText);
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('Server response received:', data);
+            return data;
+        } catch (error) {
+            console.error('Server communication error:', error);
+            throw error;
         }
+    }
 
-        const data = await response.json();
-        console.log('Server response received:', data);
-        return data;
-    } catch (error) {
-        console.error('Server communication error:', error);
-        throw error;
+    // 대화 기록 가져오기
+    getConversationHistory() {
+        return this.conversationHistory;
     }
 }
 
