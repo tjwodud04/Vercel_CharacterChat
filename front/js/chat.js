@@ -182,22 +182,24 @@ class AudioManager {
             });
             console.log('Audio stream obtained successfully');
     
-            // MediaRecorder 설정
-            const mimeType = 'audio/webm';
-            if (MediaRecorder.isTypeSupported(mimeType)) {
-                this.mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: mimeType,
-                    audioBitsPerSecond: 128000
-                });
-            } else {
+            // Explicitly set to use WAV format
+            const options = {
+                audioBitsPerSecond: 128000,
+                mimeType: 'audio/wav'
+            };
+    
+            // Fall back to default if WAV is not supported
+            if (!MediaRecorder.isTypeSupported('audio/wav')) {
+                console.log('WAV not supported, falling back to default format');
                 this.mediaRecorder = new MediaRecorder(stream);
-                console.log('Using default MediaRecorder configuration');
+            } else {
+                this.mediaRecorder = new MediaRecorder(stream, options);
             }
     
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
-                    console.log('Audio chunk received:', event.data.size, 'bytes');
+                    console.log('Audio chunk received:', event.data.size, 'bytes', 'type:', event.data.type);
                 }
             };
     
@@ -209,7 +211,7 @@ class AudioManager {
     
             this.mediaRecorder.start(100);
             this.isRecording = true;
-            console.log('Recording started');
+            console.log('Recording started with format:', this.mediaRecorder.mimeType);
             return true;
     
         } catch (error) {
