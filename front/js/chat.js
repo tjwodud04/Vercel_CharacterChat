@@ -230,6 +230,9 @@ class ChatManager {
         if (this.initialized) return;
         
         try {
+            const recordButton = document.getElementById('recordButton');
+            recordButton.disabled = true;  // 녹음 버튼 비활성화
+            
             const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
             
             // 서버에 인삿말 요청 전송
