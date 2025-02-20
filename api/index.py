@@ -75,39 +75,24 @@ def save_conversation(user_input: str, ai_response: str):
 
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    try:
-        character = request.form.get('character', 'kei')
-        is_greeting = request.form.get('greeting', 'false') == 'true'
-        
-        if is_greeting:
-            # 인삿말 처리 - GPT 없이 직접 TTS 요청
-            greeting_text = f"만나서 반가워요. 저는 {'케이' if character == 'kei' else '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요."
-            
-            # OpenAI TTS API 직접 호출
-            speech_response = client.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
-                input=greeting_text
-            )
-            
-            # 음성 데이터를 base64로 인코딩
-            audio_base64 = base64.b64encode(speech_response.content).decode('utf-8')
-            
-            return jsonify({
-                "ai_text": greeting_text,
-                "audio": audio_base64
-            })
-
+    try:            
         if 'audio' not in request.files:
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
+        character = request.form.get('character', 'kei')
         
         # 파일 정보 로깅
         print(f"Received file: {audio_file.filename}")
         print(f"Content Type: {audio_file.content_type}")
         print(f"Character: {character}")
-
+                
+    except Exception as e:
+        print(f"Error in chat endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+        
         # 임시 파일 생성
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             # 파일 저장 전 크기 확인
