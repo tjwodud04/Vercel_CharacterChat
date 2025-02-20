@@ -292,48 +292,22 @@ class ChatManager {
         });
     }
 
+        // 간단한 인사말 표시 메소드
     async playGreeting() {
         if (this.initialized) return;
         
         try {
-            const recordButton = document.getElementById('recordButton');
-            recordButton.disabled = true;  // 녹음 버튼 비활성화
-            
             const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
-            
-            // 서버에 인삿말 요청 전송
-            const formData = new FormData();
-            formData.append('character', this.characterType);
-            formData.append('greeting', 'true');
-            
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (!response.ok) throw new Error('Greeting request failed');
-            
-            const data = await response.json();
             
             // 채팅창에 메시지 추가
             this.addMessage('ai', greetingMessage);
             
-            // 음성 재생 및 립싱크
-        //     if (data.audio) {
-        //         this.isPlaying = true;
-        //         live2dManager.setExpression('speaking');
-        //         await live2dManager.playAudioWithLipSync(data.audio);
-        //         live2dManager.setExpression('neutral');
-        //         this.isPlaying = false;
-        //     }
+            // 캐릭터 표정 설정
+            live2dManager.setExpression('neutral');
             
-        //     this.initialized = true;
-        // } catch (error) {
-        //     console.error('Failed to play greeting:', error);
-        // } finally {
-        //     // 인삿말 재생이 끝나면 녹음 버튼 다시 활성화
-        //     const recordButton = document.getElementById('recordButton');
-        //     recordButton.disabled = false;
+            this.initialized = true;
+        } catch (error) {
+            console.error('Failed to show greeting:', error);
         }
     }
 
