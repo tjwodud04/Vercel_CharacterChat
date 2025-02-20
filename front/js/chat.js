@@ -183,9 +183,16 @@ class AudioManager {
             console.log('Audio stream obtained successfully');
     
             // MediaRecorder 설정
-            this.mediaRecorder = new MediaRecorder(stream, {
-                mimeType: 'audio/wav'
-            });
+            const mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported(mimeType)) {
+                this.mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: mimeType,
+                    audioBitsPerSecond: 128000
+                });
+            } else {
+                this.mediaRecorder = new MediaRecorder(stream);
+                console.log('Using default MediaRecorder configuration');
+            }
     
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
