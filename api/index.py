@@ -47,6 +47,7 @@ def serve_css(filename):
 def serve_js(filename):
     return send_from_directory('../front/js', filename)
 
+
 def save_conversation(user_input: str, ai_response: str):
     conversation = {
         "timestamp": datetime.now().isoformat(),
@@ -70,6 +71,7 @@ def save_conversation(user_input: str, ai_response: str):
     except Exception as e:
         print(f"대화 저장 중 오류 발생: {str(e)}")
 
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
     try:
@@ -77,27 +79,27 @@ def chat():
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
-        character = request.form.get('character', 'kei')
+        character = request.form.get('character', 'kei')  # 기본값은 'kei'
+        print(f"Received file: {audio_file.filename}, Character: {character}")
 
-        # 임시 파일 생성시 unique한 이름 사용
-        temp_filename = f"/tmp/audio_{uuid.uuid4()}.webm"
-        
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
+            temp_file.write(audio_file.read())
+            temp_file_path = temp_file.name
+
         try:
-            # 파일 쓰기
-            audio_file.save(temp_filename)
-            
-            # Whisper API 호출
-            with open(temp_filename, 'rb') as audio:
+            # Whisper API로 음성을 텍스트로 변환
+            with open(temp_file_path, 'rb') as audio:
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
-                    # file=audio,
-                    file=("audio.webm", audio_data, "audio/webm"),  # MIME 타입 지정
+                    file=audio,
                     response_format="text"
                 )
 
             user_text = transcription
             print(f"Transcribed text: {user_text}")
 
+            # 캐릭터별 시스템 메시지 설정
             system_messages = {
                 'kei': "당신은 창의적이고 현대적인 감각을 지닌 캐릭터로, 독특한 은발과 에메랄드빛 눈동자가 특징입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감 기반이되 실용적인 관점을 놓치지 않고, 따뜻하고 세련된 톤으로 2문장 이내의 답변을 제공해주세요.",
                 'haru': "당신은 비즈니스 환경에서 일하는 전문적이고 자신감 있는 여성 캐릭터입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감하면서도 실용적인 관점에서 명확하고 간단한 해결책을 2문장 이내로 제시해주세요.",
@@ -105,6 +107,7 @@ def chat():
 
             system_message = system_messages.get(character, system_messages['kei'])
 
+            # gpt-4o-audio-preview로 텍스트와 음성 동시 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
                 modalities=["text", "audio"],
@@ -118,9 +121,11 @@ def chat():
                 ]
             )
 
+            # 응답 처리
             ai_text = chat_response.choices[0].message.audio.transcript
             ai_audio = chat_response.choices[0].message.audio.data
 
+            # 대화 저장
             save_conversation(user_text, ai_text)
 
             return jsonify({
@@ -130,18 +135,18 @@ def chat():
             })
 
         finally:
-            # 임시 파일 삭제 시도
             try:
-                if os.path.exists(temp_filename):
-                    os.remove(temp_filename)
-                print(f"Temporary file {temp_filename} deleted successfully")
+                os.unlink(temp_file_path)
             except Exception as e:
-                print(f"Failed to delete temp file: {e}")
+                print(f"Warning: Failed to delete temporary file: {e}")
 
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=8000, debug=True)
 
 app = app  # for Vercel
