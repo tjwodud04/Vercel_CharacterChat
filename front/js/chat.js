@@ -315,36 +315,36 @@ class ChatManager {
         });
     }
 
-    async sendAudioToServer(audioBlob) {
-        try {
-            console.log('Preparing to send audio to server');
-            console.log('Audio blob type:', audioBlob.type);
-            console.log('Audio blob size:', audioBlob.size);
-            
-            const formData = new FormData();
-            formData.append('audio', audioBlob, 'audio.webm');
-            formData.append('character', 'kei');  // 캐릭터 정보 추가
-    
-            console.log('Sending request to server');
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                body: formData
-            });
-    
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error response:', errorText);
-                throw new Error(`Server responded with ${response.status}: ${errorText}`);
-            }
-    
-            const data = await response.json();
-            console.log('Server response received:', data);
-            return data;
-        } catch (error) {
-            console.error('Server communication error:', error);
-            throw error;
+async sendAudioToServer(audioBlob) {
+    try {
+        console.log('Preparing to send audio to server');
+        console.log('Audio blob type:', audioBlob.type);
+        console.log('Audio blob size:', audioBlob.size);
+        
+        const formData = new FormData();
+        formData.append('audio', audioBlob, 'audio.webm');
+        formData.append('character', 'kei');  // 캐릭터 정보 추가
+
+        console.log('Sending request to server');
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Server error response:', errorText);
+            throw new Error(`Server responded with ${response.status}: ${errorText}`);
         }
+
+        const data = await response.json();
+        console.log('Server response received:', data);
+        return data;
+    } catch (error) {
+        console.error('Server communication error:', error);
+        throw error;
     }
+}
 
 let live2dManager;
 let audioManager;
