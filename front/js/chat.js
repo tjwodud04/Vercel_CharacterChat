@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // 약간의 지연을 주어 모델이 완전히 표시된 후 인삿말 시작
         setTimeout(() => {
             chatManager.playGreeting();
-        }, 1000);
+        }, 200);
     });
     console.log('Application initialization completed');
 });
