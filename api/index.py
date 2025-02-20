@@ -127,17 +127,18 @@ def chat():
             system_message = system_messages.get(character, system_messages['kei'])
 
             # GPT-4 응답 생성
+             # gpt-4o-audio-preview로 텍스트와 음성 동시 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
-                modalities=["text", "audio"],  # 모달리티 명시
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": user_text}
-                ],
-                audio_output={  # audio_output 설정 추가
+                modalities=["text", "audio"],
+                audio={
                     "voice": "alloy",
                     "format": "wav"
                 },
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": user_text}
+                ]
             )
 
             ai_text = chat_response.choices[0].message.content
