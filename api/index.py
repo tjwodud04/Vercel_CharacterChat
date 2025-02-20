@@ -143,7 +143,7 @@ def chat():
 
             # 응답 구조 확인 및 처리
             response_message = chat_response.choices[0].message
-            ai_text = response_message.content
+            ai_text = response_message.audio.transcript if response_message.audio else None
             
             # 음성 데이터 추출 및 base64 인코딩
             # audio 데이터가 있는지 확인하고 처리
