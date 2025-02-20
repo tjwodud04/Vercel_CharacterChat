@@ -133,7 +133,11 @@ def chat():
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_text}
-                ]
+                ],
+                audio_output={  # audio_output 설정 추가
+                    "voice": "alloy",
+                    "format": "wav"
+                },
             )
 
             ai_text = chat_response.choices[0].message.content
