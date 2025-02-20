@@ -144,7 +144,7 @@ def chat():
             ai_text = chat_response.choices[0].message.content
             
             # 음성 데이터 추출 및 base64 인코딩
-            audio_data = chat_response.choices[0].message.audio
+            audio_data = chat_response.choices[0].message.audio.content
             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
             
             print(f"AI response generated: {ai_text}")
