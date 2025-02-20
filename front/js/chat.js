@@ -319,22 +319,22 @@ class ChatManager {
             this.addMessage('ai', greetingMessage);
             
             // 음성 재생 및 립싱크
-            if (data.audio) {
-                this.isPlaying = true;
-                live2dManager.setExpression('speaking');
-                await live2dManager.playAudioWithLipSync(data.audio);
-                live2dManager.setExpression('neutral');
-                this.isPlaying = false;
-            }
+        //     if (data.audio) {
+        //         this.isPlaying = true;
+        //         live2dManager.setExpression('speaking');
+        //         await live2dManager.playAudioWithLipSync(data.audio);
+        //         live2dManager.setExpression('neutral');
+        //         this.isPlaying = false;
+        //     }
             
-            this.initialized = true;
-        } catch (error) {
-            console.error('Failed to play greeting:', error);
-        } finally {
-            // 인삿말 재생이 끝나면 녹음 버튼 다시 활성화
-            const recordButton = document.getElementById('recordButton');
-            recordButton.disabled = false;
-        }
+        //     this.initialized = true;
+        // } catch (error) {
+        //     console.error('Failed to play greeting:', error);
+        // } finally {
+        //     // 인삿말 재생이 끝나면 녹음 버튼 다시 활성화
+        //     const recordButton = document.getElementById('recordButton');
+        //     recordButton.disabled = false;
+        // }
     }
 
     async sendAudioToServer(audioBlob) {
