@@ -129,6 +129,7 @@ def chat():
             # GPT-4 응답 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
+                modalities=["text", "audio"],  # 모달리티 명시
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_text}
