@@ -3,8 +3,8 @@ class Live2DManager {
         this.model = null;
         this.app = null;
         this.canvas = document.getElementById('live2d-canvas');
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         window.PIXI = PIXI;
-        // this.isInitialized = false; // added
         console.log('Live2DManager initialized');
     }
 
@@ -35,7 +35,11 @@ class Live2DManager {
 
             this.app.stage.addChild(this.model);
             this.setExpression('neutral');
-            
+
+            // 초기화 완료 이벤트 발생
+            const event = new CustomEvent('live2dInitialized');
+            document.dispatchEvent(event);
+
         } catch (error) {
             console.error('Live2D model loading failed:', error);
         }
@@ -68,9 +72,22 @@ class Live2DManager {
                 uint8Array[i] = audioData.charCodeAt(i);
             }
 
+            // 자동재생을 위해 AudioContext resume
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+
             const audioBlob = new Blob([arrayBuffer], { type: 'audio/wav' });
             const audioUrl = URL.createObjectURL(audioBlob);
             console.log('Audio blob created and URL generated');
+
+            // 오디오 요소 생성 및 설정
+            const audioElement = new Audio(audioUrl);
+            await audioElement.play().catch(async (error) => {
+                console.warn('Auto-play failed, trying to resume audio context:', error);
+                await this.audioContext.resume();
+                return audioElement.play();
+            });
 
             this.model.speak(audioUrl, {
                 volume: 1.0,
@@ -78,11 +95,11 @@ class Live2DManager {
             });
 
             return new Promise((resolve) => {
-                setTimeout(() => {
+                audioElement.onended = () => {
                     URL.revokeObjectURL(audioUrl);
                     console.log('Audio playback completed, URL revoked');
                     resolve();
-                }, 500);
+                };
             });
         } catch (error) {
             console.error('Audio playback error:', error);
@@ -108,15 +125,20 @@ class AudioManager {
         this.analyser = null;
         this.processor = null;
         this.audioStream = null;
-        this.initAudioContext();
+        this.setupAudioContext();
         console.log('AudioManager initialized');
     }
 
-    initAudioContext() {
+    async setupAudioContext() {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            console.log('Audio context initialized successfully');
+            
+            // Audio Context 상태 처리
+            if (this.audioContext.state === 'suspended') {
+                await this.audioContext.resume();
+            }
+            console.log('Audio context initialized and resumed successfully');
         } catch (error) {
             console.error('Failed to initialize audio context:', error);
         }
@@ -210,25 +232,15 @@ class AudioManager {
 }
 
 class ChatManager {
-    constructor(characterType = 'kei') {  // 기본값으로 'kei' 설정
+    constructor(characterType = 'kei') {
         this.chatHistory = document.getElementById('chatHistory');
         this.isPlaying = false;
-        this.conversationHistory = []; // Store conversation history for context
-        this.characterType = characterType;  // 캐릭터 타입 저장
-        // this.initialized = false; // added
+        this.conversationHistory = [];
+        this.characterType = characterType;
+        this.initialized = false;
         console.log('ChatManager initialized');
     }
 
-    async playGreeting() {
-        if (this.initialized) return;
-           
-        const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
-            
-        // 채팅창에 메시지 추가
-        this.addMessage('ai', greetingMessage);
-    }
-
-    
     addMessage(role, message) {
         console.log(`Adding ${role} message:`, message);
 
@@ -280,6 +292,51 @@ class ChatManager {
         });
     }
 
+    async playGreeting() {
+        if (this.initialized) return;
+        
+        try {
+            const recordButton = document.getElementById('recordButton');
+            recordButton.disabled = true;  // 녹음 버튼 비활성화
+            
+            const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
+            
+            // 서버에 인삿말 요청 전송
+            const formData = new FormData();
+            formData.append('character', this.characterType);
+            formData.append('greeting', 'true');
+            
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) throw new Error('Greeting request failed');
+            
+            const data = await response.json();
+            
+            // 채팅창에 메시지 추가
+            this.addMessage('ai', greetingMessage);
+            
+            // 음성 재생 및 립싱크
+            if (data.audio) {
+                this.isPlaying = true;
+                live2dManager.setExpression('speaking');
+                await live2dManager.playAudioWithLipSync(data.audio);
+                live2dManager.setExpression('neutral');
+                this.isPlaying = false;
+            }
+            
+            this.initialized = true;
+        } catch (error) {
+            console.error('Failed to play greeting:', error);
+        } finally {
+            // 인삿말 재생이 끝나면 녹음 버튼 다시 활성화
+            const recordButton = document.getElementById('recordButton');
+            recordButton.disabled = false;
+        }
+    }
+
     async sendAudioToServer(audioBlob) {
         try {
             console.log('Preparing to send audio to server');
@@ -288,7 +345,7 @@ class ChatManager {
             
             const formData = new FormData();
             formData.append('audio', audioBlob, 'audio.webm');
-            formData.append('character', this.characterType);  // 캐릭터 정보 추가
+            formData.append('character', this.characterType);
 
             console.log('Sending request to server');
             const response = await fetch('/api/chat', {
@@ -311,7 +368,6 @@ class ChatManager {
         }
     }
 
-    // 대화 기록 가져오기
     getConversationHistory() {
         return this.conversationHistory;
     }
@@ -331,22 +387,46 @@ function updateLipSync() {
         const average = sum / audioData.length;
         const normalizedValue = average / 128;
 
-        live2dManager.updateLipSync(normalizedValue);
+        if (live2dManager && live2dManager.model) {
+            const lipOpenY = Math.min(normalizedValue * 2, 1);
+            live2dManager.model.motionManager.update(lipOpenY);
+        }
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('Initializing application...');
     live2dManager = new Live2DManager();
     audioManager = new AudioManager();
     chatManager = new ChatManager('kei');
 
-    live2dManager.initialize();
+    // AudioContext 초기화 및 resume
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+        }
+    } catch (error) {
+        console.error('Failed to initialize global audio context:', error);
+    }
+
+    await live2dManager.initialize();
 
     const recordButton = document.getElementById('recordButton');
     recordButton.addEventListener('click', handleRecording);
 
     setInterval(updateLipSync, 50);
+
+    // Live2D 초기화 완료 이벤트 리스너 수정
+    document.addEventListener('live2dInitialized', async () => {
+        try {
+            // 약간의 지연을 주어 모델이 완전히 표시된 후 인삿말 시작
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await chatManager.playGreeting();
+        } catch (error) {
+            console.error('Failed to play greeting:', error);
+        }
+        });
     
     console.log('Application initialization completed');
 });
