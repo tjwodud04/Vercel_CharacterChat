@@ -334,7 +334,7 @@ class ChatManager {
         //     // 인삿말 재생이 끝나면 녹음 버튼 다시 활성화
         //     const recordButton = document.getElementById('recordButton');
         //     recordButton.disabled = false;
-        // }
+        }
     }
 
     async sendAudioToServer(audioBlob) {
