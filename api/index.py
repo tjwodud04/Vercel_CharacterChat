@@ -6,8 +6,8 @@ from pathlib import Path
 
 import os
 import uuid
-import tempfile
-import base64
+import tempfile  # 추가
+import base64  # 추가된 임포트
 import json
 
 app = Flask(__name__, 
@@ -50,6 +50,7 @@ def serve_css(filename):
 def serve_js(filename):
     return send_from_directory('../front/js', filename)
 
+
 def save_conversation(user_input: str, ai_response: str):
     conversation = {
         "timestamp": datetime.now().isoformat(),
@@ -73,9 +74,10 @@ def save_conversation(user_input: str, ai_response: str):
     except Exception as e:
         print(f"대화 저장 중 오류 발생: {str(e)}")
 
+
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    try:            
+    try:
         if 'audio' not in request.files:
             return jsonify({"error": "No audio file provided"}), 400
 
@@ -86,13 +88,7 @@ def chat():
         print(f"Received file: {audio_file.filename}")
         print(f"Content Type: {audio_file.content_type}")
         print(f"Character: {character}")
-                
-    except Exception as e:
-        print(f"Error in chat endpoint: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
-        
+
         # 임시 파일 생성
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             # 파일 저장 전 크기 확인
@@ -147,12 +143,14 @@ def chat():
 
             # 응답 구조 확인 및 처리
             response_message = chat_response.choices[0].message
-            ai_text = response_message.content
+            ai_text = response_message.audio.transcript if response_message.audio else None
             
             # 음성 데이터 추출 및 base64 인코딩
+            # audio 데이터가 있는지 확인하고 처리
             audio_base64 = None
             if hasattr(response_message, 'audio') and response_message.audio:
                 audio_base64 = response_message.audio.data
+
             
             print(f"AI response generated: {ai_text}")
 
@@ -175,5 +173,3 @@ def chat():
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-
-app = app  # for Vercel
