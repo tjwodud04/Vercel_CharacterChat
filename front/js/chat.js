@@ -1,5 +1,3 @@
-import AudioRecorder from 'audio-recorder-polyfill'
-
 class Live2DManager {
     constructor() {
         this.model = null;
