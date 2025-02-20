@@ -105,115 +105,51 @@ class AudioManager {
         this.audioContext = null;
         this.analyser = null;
         this.initAudioContext();
-        console.log('AudioManager initialized');
     }
 
     initAudioContext() {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             this.analyser = this.audioContext.createAnalyser();
-            console.log('Audio context initialized successfully');
         } catch (error) {
             console.error('Failed to initialize audio context:', error);
         }
     }
 
-    // async startRecording() {
-    //     try {
-    //         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    //             throw new Error('Media Devices API not supported');
-    //         }
-
-    //         const stream = await navigator.mediaDevices.getUserMedia({
-    //             audio: {
-    //                 channelCount: 1,
-    //                 sampleRate: 16000
-    //             },
-    //             video: false
-    //         });
-    //         console.log('Audio stream obtained successfully');
-
-    //         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-    //             ? 'audio/webm;codecs=opus'
-    //             : 'audio/webm';
-    //         console.log('Using MIME type:', mimeType);
-
-    //         this.mediaRecorder = new MediaRecorder(stream, {
-    //             mimeType: mimeType,
-    //             audioBitsPerSecond: 128000
-    //         });
-
-    //         this.mediaRecorder.ondataavailable = (event) => {
-    //             if (event.data.size > 0) {
-    //                 this.audioChunks.push(event.data);
-    //                 console.log('Audio chunk received:', event.data.size, 'bytes');
-    //             }
-    //         };
-
-    //         if (this.audioContext && this.analyser) {
-    //             const source = this.audioContext.createMediaStreamSource(stream);
-    //             source.connect(this.analyser);
-    //             console.log('Audio source connected to analyser');
-    //         }
-
-    //         this.mediaRecorder.start(100);
-    //         this.isRecording = true;
-    //         console.log('Recording started');
-    //         return true;
-    //     } catch (error) {
-    //         console.error('Failed to start recording:', error);
-    //         alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
-    //         return false;
-    //     }
-    // }
-
     async startRecording() {
         try {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('Media Devices API not supported');
-            }
-    
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
                     sampleRate: 16000
-                },
-                video: false
+                }
             });
-            console.log('Audio stream obtained successfully');
-    
-            // Explicitly set to use WAV format
-            const options = {
-                audioBitsPerSecond: 128000,
-                mimeType: 'audio/wav'
-            };
-    
-            // Fall back to default if WAV is not supported
-            if (!MediaRecorder.isTypeSupported('audio/wav')) {
-                console.log('WAV not supported, falling back to default format');
-                this.mediaRecorder = new MediaRecorder(stream);
-            } else {
-                this.mediaRecorder = new MediaRecorder(stream, options);
-            }
-    
-            this.mediaRecorder.ondataavailable = (event) => {
-                if (event.data.size > 0) {
-                    this.audioChunks.push(event.data);
-                    console.log('Audio chunk received:', event.data.size, 'bytes', 'type:', event.data.type);
+
+            // Create MediaRecorder with WAV recording
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            const processor = audioContext.createScriptProcessor(16384, 1, 1);
+            const chunks = [];
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            processor.onaudioprocess = (e) => {
+                if (this.isRecording) {
+                    const channelData = e.inputBuffer.getChannelData(0);
+                    const wavBuffer = this.floatTo16BitPCM(channelData);
+                    chunks.push(wavBuffer);
                 }
             };
-    
-            if (this.audioContext && this.analyser) {
-                const source = this.audioContext.createMediaStreamSource(stream);
-                source.connect(this.analyser);
-                console.log('Audio source connected to analyser');
-            }
-    
-            this.mediaRecorder.start(100);
+
+            this.audioChunks = chunks;
             this.isRecording = true;
-            console.log('Recording started with format:', this.mediaRecorder.mimeType);
+            
+            // Connect to analyser for visualization
+            const analyserSource = this.audioContext.createMediaStreamSource(stream);
+            analyserSource.connect(this.analyser);
+
             return true;
-    
         } catch (error) {
             console.error('Failed to start recording:', error);
             alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
@@ -221,35 +157,233 @@ class AudioManager {
         }
     }
 
-    
-    stopRecording() {
-        if (this.mediaRecorder && this.isRecording) {
-            console.log('Stopping recording');
-            this.mediaRecorder.stop();
-            this.isRecording = false;
-            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+    floatTo16BitPCM(float32Array) {
+        const int16Array = new Int16Array(float32Array.length);
+        for (let i = 0; i < float32Array.length; i++) {
+            const s = Math.max(-1, Math.min(1, float32Array[i]));
+            int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
+        return int16Array;
     }
 
-    getAudioBlob() {
-        const blob = new Blob(this.audioChunks, {
-            type: this.mediaRecorder ? this.mediaRecorder.mimeType : 'audio/webm'
+    createWavHeader(sampleRate, bitsPerSample, numberOfChannels, numberOfSamples) {
+        const buffer = new ArrayBuffer(44);
+        const view = new DataView(buffer);
+
+        const writeString = (view, offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, 36 + numberOfSamples * 2, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numberOfChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * numberOfChannels * (bitsPerSample / 8), true);
+        view.setUint16(32, numberOfChannels * (bitsPerSample / 8), true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, numberOfSamples * 2, true);
+
+        return buffer;
+    }
+
+    stopRecording() {
+        this.isRecording = false;
+
+        // Combine all chunks into a single audio buffer
+        const numberOfChannels = 1;
+        const sampleRate = 16000;
+        const bitsPerSample = 16;
+        
+        // Calculate total number of samples
+        let totalLength = 0;
+        this.audioChunks.forEach(chunk => {
+            totalLength += chunk.length;
         });
-        console.log('Audio blob created:', blob.size, 'bytes');
+
+        // Create WAV header
+        const header = this.createWavHeader(sampleRate, bitsPerSample, numberOfChannels, totalLength);
+
+        // Combine header and audio data
+        const audioData = new Int16Array(totalLength);
+        let offset = 0;
+        this.audioChunks.forEach(chunk => {
+            audioData.set(chunk, offset);
+            offset += chunk.length;
+        });
+
+        const blob = new Blob([header, audioData], { type: 'audio/wav' });
         this.audioChunks = [];
         return blob;
     }
 
     getAudioData() {
-        if (!this.analyser) {
-            console.warn('Analyser not initialized');
-            return new Uint8Array();
-        }
+        if (!this.analyser) return new Uint8Array();
         const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
         this.analyser.getByteTimeDomainData(dataArray);
         return dataArray;
     }
 }
+
+// class AudioManager {
+//     constructor() {
+//         this.mediaRecorder = null;
+//         this.audioChunks = [];
+//         this.isRecording = false;
+//         this.audioContext = null;
+//         this.analyser = null;
+//         this.initAudioContext();
+//         console.log('AudioManager initialized');
+//     }
+
+//     initAudioContext() {
+//         try {
+//             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+//             this.analyser = this.audioContext.createAnalyser();
+//             console.log('Audio context initialized successfully');
+//         } catch (error) {
+//             console.error('Failed to initialize audio context:', error);
+//         }
+//     }
+
+//     // async startRecording() {
+//     //     try {
+//     //         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+//     //             throw new Error('Media Devices API not supported');
+//     //         }
+
+//     //         const stream = await navigator.mediaDevices.getUserMedia({
+//     //             audio: {
+//     //                 channelCount: 1,
+//     //                 sampleRate: 16000
+//     //             },
+//     //             video: false
+//     //         });
+//     //         console.log('Audio stream obtained successfully');
+
+//     //         const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+//     //             ? 'audio/webm;codecs=opus'
+//     //             : 'audio/webm';
+//     //         console.log('Using MIME type:', mimeType);
+
+//     //         this.mediaRecorder = new MediaRecorder(stream, {
+//     //             mimeType: mimeType,
+//     //             audioBitsPerSecond: 128000
+//     //         });
+
+//     //         this.mediaRecorder.ondataavailable = (event) => {
+//     //             if (event.data.size > 0) {
+//     //                 this.audioChunks.push(event.data);
+//     //                 console.log('Audio chunk received:', event.data.size, 'bytes');
+//     //             }
+//     //         };
+
+//     //         if (this.audioContext && this.analyser) {
+//     //             const source = this.audioContext.createMediaStreamSource(stream);
+//     //             source.connect(this.analyser);
+//     //             console.log('Audio source connected to analyser');
+//     //         }
+
+//     //         this.mediaRecorder.start(100);
+//     //         this.isRecording = true;
+//     //         console.log('Recording started');
+//     //         return true;
+//     //     } catch (error) {
+//     //         console.error('Failed to start recording:', error);
+//     //         alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+//     //         return false;
+//     //     }
+//     // }
+
+//     async startRecording() {
+//         try {
+//             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+//                 throw new Error('Media Devices API not supported');
+//             }
+    
+//             const stream = await navigator.mediaDevices.getUserMedia({
+//                 audio: {
+//                     channelCount: 1,
+//                     sampleRate: 16000
+//                 },
+//                 video: false
+//             });
+//             console.log('Audio stream obtained successfully');
+    
+//             // Explicitly set to use WAV format
+//             const options = {
+//                 audioBitsPerSecond: 128000,
+//                 mimeType: 'audio/wav'
+//             };
+    
+//             // Fall back to default if WAV is not supported
+//             if (!MediaRecorder.isTypeSupported('audio/wav')) {
+//                 console.log('WAV not supported, falling back to default format');
+//                 this.mediaRecorder = new MediaRecorder(stream);
+//             } else {
+//                 this.mediaRecorder = new MediaRecorder(stream, options);
+//             }
+    
+//             this.mediaRecorder.ondataavailable = (event) => {
+//                 if (event.data.size > 0) {
+//                     this.audioChunks.push(event.data);
+//                     console.log('Audio chunk received:', event.data.size, 'bytes', 'type:', event.data.type);
+//                 }
+//             };
+    
+//             if (this.audioContext && this.analyser) {
+//                 const source = this.audioContext.createMediaStreamSource(stream);
+//                 source.connect(this.analyser);
+//                 console.log('Audio source connected to analyser');
+//             }
+    
+//             this.mediaRecorder.start(100);
+//             this.isRecording = true;
+//             console.log('Recording started with format:', this.mediaRecorder.mimeType);
+//             return true;
+    
+//         } catch (error) {
+//             console.error('Failed to start recording:', error);
+//             alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+//             return false;
+//         }
+//     }
+
+    
+//     stopRecording() {
+//         if (this.mediaRecorder && this.isRecording) {
+//             console.log('Stopping recording');
+//             this.mediaRecorder.stop();
+//             this.isRecording = false;
+//             this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+//         }
+//     }
+
+//     getAudioBlob() {
+//         const blob = new Blob(this.audioChunks, {
+//             type: this.mediaRecorder ? this.mediaRecorder.mimeType : 'audio/webm'
+//         });
+//         console.log('Audio blob created:', blob.size, 'bytes');
+//         this.audioChunks = [];
+//         return blob;
+//     }
+
+//     getAudioData() {
+//         if (!this.analyser) {
+//             console.warn('Analyser not initialized');
+//             return new Uint8Array();
+//         }
+//         const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+//         this.analyser.getByteTimeDomainData(dataArray);
+//         return dataArray;
+//     }
+// }
 
 class ChatManager {
     constructor(characterType = 'kei') {  // 기본값으로 'kei' 설정
