@@ -4,7 +4,7 @@ class Live2DManager {
         this.app = null;
         this.canvas = document.getElementById('live2d-canvas');
         window.PIXI = PIXI;
-        this.isInitialized = false; // added
+        // this.isInitialized = false; // added
         console.log('Live2DManager initialized');
     }
 
@@ -37,11 +37,11 @@ class Live2DManager {
             this.setExpression('neutral');
             
             // 초기화 완료 상태 설정
-            this.isInitialized = true; // added
+            // this.isInitialized = true; // added
             
             // 초기화 완료 이벤트 발생
-            const event = new CustomEvent('live2dInitialized');
-            document.dispatchEvent(event);
+            // const event = new CustomEvent('live2dInitialized');
+            // document.dispatchEvent(event);
             
         } catch (error) {
             console.error('Live2D model loading failed:', error);
@@ -222,7 +222,7 @@ class ChatManager {
         this.isPlaying = false;
         this.conversationHistory = []; // Store conversation history for context
         this.characterType = characterType;  // 캐릭터 타입 저장
-        this.initialized = false; // added
+        // this.initialized = false; // added
         console.log('ChatManager initialized');
     }
 
@@ -230,8 +230,8 @@ class ChatManager {
         if (this.initialized) return;
         
         try {
-            const recordButton = document.getElementById('recordButton');
-            recordButton.disabled = true;  // 녹음 버튼 비활성화
+            // const recordButton = document.getElementById('recordButton');
+            // recordButton.disabled = true;  // 녹음 버튼 비활성화
             
             const greetingMessage = `만나서 반가워요. 저는 ${this.characterType === 'kei' ? '케이' : '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요.`;
             
@@ -253,17 +253,17 @@ class ChatManager {
             this.addMessage('ai', greetingMessage);
             
             // 음성 재생 및 립싱크
-            if (data.audio) {
-                this.isPlaying = true;
-                live2dManager.setExpression('speaking');
-                await live2dManager.playAudioWithLipSync(data.audio);
-                live2dManager.setExpression('neutral');
-                this.isPlaying = false;
-            }
+            // if (data.audio) {
+            //     this.isPlaying = true;
+            //     live2dManager.setExpression('speaking');
+            //     await live2dManager.playAudioWithLipSync(data.audio);
+            //     live2dManager.setExpression('neutral');
+            //     this.isPlaying = false;
+            // }
             
-            this.initialized = true;
-        } catch (error) {
-            console.error('Failed to play greeting:', error);
+            // this.initialized = true;
+        // } catch (error) {
+            // console.error('Failed to play greeting:', error);
         }
     }
 
@@ -388,12 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(updateLipSync, 50);
     
     // Live2D 초기화 완료 이벤트 리스너 추가
-    document.addEventListener('live2dInitialized', () => {
+    // document.addEventListener('live2dInitialized', () => {
         // 약간의 지연을 주어 모델이 완전히 표시된 후 인삿말 시작
-        setTimeout(() => {
-            chatManager.playGreeting();
-        }, 200);
-    });
+        // setTimeout(() => {
+            // chatManager.playGreeting();
+        // }, 200);
+    // });
     console.log('Application initialization completed');
 });
 
