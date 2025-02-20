@@ -81,21 +81,10 @@ def chat():
         
         if is_greeting:
             # 인삿말 처리
-            greeting_text = f"만나서 반가워요. 저는 {'케이' if character == 'kei' else '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요."
-            
-            # OpenAI TTS API 직접 호출
-            speech_response = client.audio.speech.create(
-                model="tts-1",
-                voice="alloy",
-                input=greeting_text
-            )
-            
-            # 음성 데이터를 base64로 인코딩
-            audio_base64 = base64.b64encode(speech_response.content).decode('utf-8')
+            greeting_text = f"만나서 반가워요. 저는 {'케이' if character == 'kei' else '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요."     
             
             return jsonify({
                 "ai_text": greeting_text,
-                "audio": audio_base64
             })
 
         if 'audio' not in request.files:
