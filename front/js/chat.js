@@ -168,39 +168,49 @@ class AudioManager {
     // }
 
     async startRecording() {
-    try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('Media Devices API not supported');
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                channelCount: 1,
-                sampleRate: 16000
-            },
-            video: false
-        });
-        console.log('Audio stream obtained successfully');
-
-        // audio-recorder-polyfill 사용
-        window.MediaRecorder = AudioRecorder;
-        
-        this.mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'audio/wav'
-        });
-
-        this.mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                this.audioChunks.push(event.data);
-                console.log('Audio chunk received:', event.data.size, 'bytes');
+        try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('Media Devices API not supported');
             }
-        };
-
-        if (this.audioContext && this.analyser) {
-            const source = this.audioContext.createMediaStreamSource(stream);
-            source.connect(this.analyser);
-            console.log('Audio source connected to analyser');
+    
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    sampleRate: 16000
+                },
+                video: false
+            });
+            console.log('Audio stream obtained successfully');
+    
+            // MediaRecorder 설정
+            this.mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'audio/wav'
+            });
+    
+            this.mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    this.audioChunks.push(event.data);
+                    console.log('Audio chunk received:', event.data.size, 'bytes');
+                }
+            };
+    
+            if (this.audioContext && this.analyser) {
+                const source = this.audioContext.createMediaStreamSource(stream);
+                source.connect(this.analyser);
+                console.log('Audio source connected to analyser');
+            }
+    
+            this.mediaRecorder.start(100);
+            this.isRecording = true;
+            console.log('Recording started');
+            return true;
+    
+        } catch (error) {
+            console.error('Failed to start recording:', error);
+            alert('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.');
+            return false;
         }
+    }
 
     
     stopRecording() {
