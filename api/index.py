@@ -81,32 +81,17 @@ def chat():
         
         if is_greeting:
             # 인삿말 처리
-            system_messages = {
-                'kei': "당신은 창의적이고 현대적인 감각을 지닌 캐릭터로, 독특한 은발과 에메랄드빛 눈동자가 특징입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감 기반이되 실용적인 관점을 놓치지 않고, 따뜻하고 세련된 톤으로 2문장 이내의 답변을 제공해주세요.",
-                'haru': "당신은 비즈니스 환경에서 일하는 전문적이고 자신감 있는 여성 캐릭터입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감하면서도 실용적인 관점에서 명확하고 간단한 해결책을 2문장 이내로 제시해주세요.",
-            }
-            
-            system_message = system_messages.get(character, system_messages['kei'])
             greeting_text = f"만나서 반가워요. 저는 {'케이' if character == 'kei' else '하루'}에요. 당신의 감정 상태는 어떠한가요? 저에게 들려주세요."
             
-            # GPT-4 응답 생성
-            chat_response = client.chat.completions.create(
-                model="gpt-4o-audio-preview",
-                modalities=["text", "audio"],
-                audio={
-                    "voice": "alloy",
-                    "format": "wav"
-                },
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "assistant", "content": greeting_text}
-                ]
+            # OpenAI TTS API 직접 호출
+            speech_response = client.audio.speech.create(
+                model="tts-1",
+                voice="alloy",
+                input=greeting_text
             )
             
-            response_message = chat_response.choices[0].message
-            audio_base64 = None
-            if hasattr(response_message, 'audio') and response_message.audio:
-                audio_base64 = response_message.audio.data
+            # 음성 데이터를 base64로 인코딩
+            audio_base64 = base64.b64encode(speech_response.content).decode('utf-8')
             
             return jsonify({
                 "ai_text": greeting_text,
