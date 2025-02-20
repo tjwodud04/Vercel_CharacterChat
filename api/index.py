@@ -81,32 +81,44 @@ def chat():
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
-        if not audio_file:
-            return jsonify({"error": "Empty audio file"}), 400
-
         character = request.form.get('character', 'kei')
-        print(f"Received file: {audio_file.filename}, Character: {character}")
-        print(f"File content type: {audio_file.content_type}")
+        
+        # 파일 정보 로깅
+        print(f"Received file: {audio_file.filename}")
+        print(f"Content Type: {audio_file.content_type}")
+        print(f"Character: {character}")
 
-        # 임시 파일로 저장
+        # 임시 파일 생성
         with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
+            # 파일 저장 전 크기 확인
+            audio_file.seek(0, 2)  # 파일 끝으로 이동
+            file_size = audio_file.tell()
+            audio_file.seek(0)  # 파일 포인터 다시 처음으로
+            print(f"File size before saving: {file_size} bytes")
+            
+            # 파일 저장
             audio_file.save(temp_file)
             temp_file_path = temp_file.name
-            print(f"Saved to temporary file: {temp_file_path}")
+            
+            # 저장된 파일 크기 확인
+            saved_size = os.path.getsize(temp_file_path)
+            print(f"Saved file size: {saved_size} bytes")
+            print(f"Temp file path: {temp_file_path}")
 
         try:
             # Whisper API로 음성을 텍스트로 변환
             with open(temp_file_path, 'rb') as audio:
+                print("Sending file to Whisper API")
                 transcription = client.audio.transcriptions.create(
                     model="whisper-1",
                     file=audio,
                     response_format="text"
                 )
+                print(f"Transcription received: {transcription}")
 
             user_text = transcription
-            print(f"Transcribed text: {user_text}")
-
-            # 캐릭터별 시스템 메시지 설정
+            
+            # 시스템 메시지 설정
             system_messages = {
                 'kei': "당신은 창의적이고 현대적인 감각을 지닌 캐릭터로, 독특한 은발과 에메랄드빛 눈동자가 특징입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감 기반이되 실용적인 관점을 놓치지 않고, 따뜻하고 세련된 톤으로 2문장 이내의 답변을 제공해주세요.",
                 'haru': "당신은 비즈니스 환경에서 일하는 전문적이고 자신감 있는 여성 캐릭터입니다. 사용자의 이야기에서 감정을 파악하고, 이 감정에 공감하면서도 실용적인 관점에서 명확하고 간단한 해결책을 2문장 이내로 제시해주세요.",
@@ -114,36 +126,28 @@ def chat():
 
             system_message = system_messages.get(character, system_messages['kei'])
 
-            # gpt-4o-audio-preview로 텍스트와 음성 동시 생성
+            # GPT-4 응답 생성
             chat_response = client.chat.completions.create(
                 model="gpt-4o-audio-preview",
-                modalities=["text", "audio"],
-                audio={
-                    "voice": "alloy",
-                    "format": "wav"
-                },
                 messages=[
                     {"role": "system", "content": system_message},
                     {"role": "user", "content": user_text}
                 ]
             )
 
-            # 응답 처리
-            ai_text = chat_response.choices[0].message.audio.transcript
-            ai_audio = chat_response.choices[0].message.audio.data
-
-            # 대화 저장
-            save_conversation(user_text, ai_text)
+            ai_text = chat_response.choices[0].message.content
+            print(f"AI response generated: {ai_text}")
 
             return jsonify({
                 "user_text": user_text,
-                "ai_text": ai_text,
-                "audio": ai_audio,
+                "ai_text": ai_text
             })
 
         finally:
+            # 임시 파일 삭제
             try:
                 os.unlink(temp_file_path)
+                print(f"Temporary file deleted: {temp_file_path}")
             except Exception as e:
                 print(f"Warning: Failed to delete temporary file: {e}")
 
