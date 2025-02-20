@@ -145,6 +145,12 @@ def chat():
             
             # 음성 데이터 추출 및 base64 인코딩
             audio_data = chat_response.choices[0].message.audio.data
+
+
+            # Ensure audio_data is a string
+            if isinstance(audio_data, str):
+                audio_data = audio_data.encode('utf-8')  # Encode string to bytes
+
             audio_base64 = base64.b64encode(audio_data).decode('utf-8')
             
             print(f"AI response generated: {ai_text}")
