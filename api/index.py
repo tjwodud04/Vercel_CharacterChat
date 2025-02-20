@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import uuid
 import tempfile  # 추가
+import base64  # 추가된 임포트
 import json
 
 app = Flask(__name__, 
