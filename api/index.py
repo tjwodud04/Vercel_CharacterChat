@@ -141,17 +141,22 @@ def chat():
                 ]
             )
 
-            ai_text = chat_response.choices[0].message.content
+            # 응답 구조 확인 및 처리
+            response_message = chat_response.choices[0].message
+            ai_text = response_message.content
             
             # 음성 데이터 추출 및 base64 인코딩
-            audio_data = chat_response.choices[0].message.audio.data
+            # audio 데이터가 있는지 확인하고 처리
+            audio_base64 = None
+            if hasattr(response_message, 'audio') and response_message.audio:
+                audio_base64 = response_message.audio.data
 
 
             # Ensure audio_data is a string
-            if isinstance(audio_data, str):
-                audio_data = audio_data.encode('utf-8')  # Encode string to bytes
+            # if isinstance(audio_data, str):
+            #     audio_data = audio_data.encode('utf-8')  # Encode string to bytes
 
-            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+            # audio_base64 = base64.b64encode(audio_data).decode('utf-8')
             
             print(f"AI response generated: {ai_text}")
 
