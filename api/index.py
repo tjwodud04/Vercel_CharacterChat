@@ -1,11 +1,13 @@
 from flask import Flask, request, send_from_directory, jsonify, render_template
 from flask_cors import CORS
 from openai import OpenAI
+from datetime import datetime
+from pathlib import Path
+
 import os
 import uuid
-from datetime import datetime
+import tempfile  # 추가
 import json
-from pathlib import Path
 
 app = Flask(__name__, 
             static_folder='../front',  # front 디렉토리를 static 폴더로 지정
@@ -79,13 +81,18 @@ def chat():
             return jsonify({"error": "No audio file provided"}), 400
 
         audio_file = request.files['audio']
-        character = request.form.get('character', 'kei')  # 기본값은 'kei'
+        if not audio_file:
+            return jsonify({"error": "Empty audio file"}), 400
+
+        character = request.form.get('character', 'kei')
         print(f"Received file: {audio_file.filename}, Character: {character}")
+        print(f"File content type: {audio_file.content_type}")
 
         # 임시 파일로 저장
         with tempfile.NamedTemporaryFile(suffix='.webm', delete=False) as temp_file:
-            temp_file.write(audio_file.read())
+            audio_file.save(temp_file)
             temp_file_path = temp_file.name
+            print(f"Saved to temporary file: {temp_file_path}")
 
         try:
             # Whisper API로 음성을 텍스트로 변환
