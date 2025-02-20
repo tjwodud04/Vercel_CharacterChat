@@ -1,5 +1,8 @@
 {
-  "version": 2,
+  "version": 2,  
+  "buildCommand": "pip install -r requirements.txt",
+  "installCommand": "apt-get update && apt-get install -y ffmpeg",
+  "framework": "python",  
   "builds": [
     {
       "src": "api/index.py",
