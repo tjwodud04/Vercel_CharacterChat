@@ -190,6 +190,14 @@ class AudioManager {
                 return true;
             }
             
+            // 이전 오디오 컨텍스트가 있으면 닫기
+            if (this.audioContext && this.audioContext.state !== 'closed') {
+                await this.audioContext.close();
+            }
+            
+            // 새 오디오 컨텍스트 초기화
+            this.initAudioContext();
+            
             // 미디어 디바이스 API 지원 여부 확인
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('Media Devices API not supported');
@@ -199,7 +207,10 @@ class AudioManager {
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,    // 모노 채널 설정
-                    sampleRate: 16000   // 샘플링 레이트 16kHz 설정
+                    sampleRate: 44100,  // 샘플링 레이트를 표준 44.1kHz로 변경
+                    echoCancellation: true,  // 에코 제거 활성화
+                    noiseSuppression: true,  // 노이즈 억제 활성화
+                    autoGainControl: true    // 자동 게인 컨트롤 활성화
                 },
                 video: false  // 비디오 비활성화
             });
@@ -332,10 +343,35 @@ class AudioManager {
     }
 
     getAudioBlob() {
-        // 오디오 청크로 Blob 생성 - 항상 wav 형식 사용
-        const blob = new Blob(this.audioChunks, {
-            type: 'audio/wav'  // 서버가 지원하는 WAV 형식으로 MIME 타입 고정
-        });
+        // 청크가 없는 경우 처리
+        if (this.audioChunks.length === 0) {
+            console.warn('오디오 청크가 없습니다.');
+            return null;
+        }
+        
+        // 오디오 청크 정보 로깅
+        console.log(`총 ${this.audioChunks.length}개의 오디오 청크 있음`);
+        
+        // 첫 번째 청크의 형식 확인
+        const firstChunkType = this.audioChunks[0].type;
+        
+        // 모든 청크가 동일한 형식인지 확인
+        const allSameType = this.audioChunks.every(chunk => chunk.type === firstChunkType);
+        
+        // 서버가 지원하는 형식 중 하나로 지정
+        let mimeType = 'audio/webm';
+        
+        // 모든 청크가 동일한 형식이면 해당 형식 사용
+        if (allSameType && firstChunkType) {
+            mimeType = firstChunkType;
+        }
+        
+        console.log(`오디오 Blob 생성, MIME 타입: ${mimeType}`);
+        
+        // 오디오 청크로 Blob 생성
+        const blob = new Blob(this.audioChunks, { type: mimeType });
+        console.log(`Blob 생성 완료, 크기: ${blob.size} 바이트`);
+        
         return blob;  // Blob 반환
     }
 
@@ -553,61 +589,90 @@ async function handleRecording() {
         return;  // 함수 종료
     }
 
-    if (!audioManager.isRecording) {  // 녹음 중이 아닌 경우
-        const started = await audioManager.startRecording();  // 녹음 시작
-        if (started) {  // 녹음 시작 성공한 경우
-            recordButton.textContent = '멈추기';  // 버튼 텍스트 변경
-            recordButton.classList.add('recording');  // 녹음 중 클래스 추가
-            live2dManager.setExpression('listening');  // 'listening' 표정 설정
-        }
-    } else {  // 녹음 중인 경우
-        // UI 상태 업데이트 - 처리 중으로 변경
-        UIState.startProcessing(recordButton, '처리 중...');
-        live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
-
-        try {
-            const audioBlob = await audioManager.stopRecording();  // 녹음 중지 및 Blob 반환
-            if (!audioBlob) {  // Blob이 없는 경우
-                throw new Error('No audio data recorded');  // 에러 발생
+    try {
+        if (!audioManager.isRecording) {  // 녹음 중이 아닌 경우
+            // 녹음 시작
+            console.log('녹음 시작 시도...');
+            const started = await audioManager.startRecording();  // 녹음 시작
+            if (started) {  // 녹음 시작 성공한 경우
+                recordButton.textContent = '멈추기';  // 버튼 텍스트 변경
+                recordButton.classList.add('recording');  // 녹음 중 클래스 추가
+                live2dManager.setExpression('listening');  // 'listening' 표정 설정
+                console.log('녹음 시작됨');
             }
+        } else {  // 녹음 중인 경우
+            // UI 상태 업데이트 - 처리 중으로 변경
+            UIState.startProcessing(recordButton, '처리 중...');
+            live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
+            console.log('녹음 중지 시도...');
 
-            const response = await chatManager.sendAudioToServer(audioBlob);  // 서버로 오디오 전송 및 응답 대기
-
-            if (response.user_text) {  // 사용자 텍스트가 있는 경우
-                chatManager.addMessage('user', response.user_text);  // 사용자 메시지 추가
-            }
-
-            if (response.ai_text) {  // AI 텍스트가 있는 경우
-                chatManager.addMessage('ai', response.ai_text);  // AI 메시지 추가
-                
-                if (response.audio) {  // 오디오가 있는 경우
-                    chatManager.isPlaying = true;  // 재생 중 플래그 설정
-                    live2dManager.setExpression('speaking');  // 'speaking' 표정 설정
-
-                    try {
-                        await live2dManager.playAudioWithLipSync(response.audio);  // 립싱크와 함께 오디오 재생
-                    } catch (error) {
-                        console.error('Playback error:', error);
-                        // 재생 오류 시 사용자에게 알림
-                        chatManager.addMessage('system', '오디오 재생 중 오류가 발생했습니다.');
-                    } finally {
-                        live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
-                        chatManager.isPlaying = false;  // 재생 중 플래그 해제
+            try {
+                // 최소 녹음 시간 확보 (너무 짧은 녹음 방지)
+                if (audioManager.audioChunks.length < 2) {
+                    console.log('녹음이 너무 짧습니다. 추가 데이터 요청 중...');
+                    // 강제로 데이터 요청
+                    if (audioManager.mediaRecorder && audioManager.mediaRecorder.state === 'recording') {
+                        audioManager.mediaRecorder.requestData();
+                        // 약간의 대기 시간
+                        await new Promise(resolve => setTimeout(resolve, 300));
                     }
                 }
+                
+                // 녹음 중지
+                const audioBlob = await audioManager.stopRecording();  // 녹음 중지 및 Blob 반환
+                console.log(`녹음 중지됨, 오디오 크기: ${audioBlob ? audioBlob.size : 0} 바이트`);
+                
+                if (!audioBlob || audioBlob.size === 0) {  // Blob이 없는 경우
+                    throw new Error('녹음된 오디오 데이터가 없습니다. 다시 시도해주세요.');
+                }
+
+                // 서버로 오디오 전송
+                console.log('서버로 오디오 데이터 전송...');
+                const response = await chatManager.sendAudioToServer(audioBlob);
+                console.log('서버 응답 수신됨');
+
+                if (response.user_text) {  // 사용자 텍스트가 있는 경우
+                    chatManager.addMessage('user', response.user_text);  // 사용자 메시지 추가
+                }
+
+                if (response.ai_text) {  // AI 텍스트가 있는 경우
+                    chatManager.addMessage('ai', response.ai_text);  // AI 메시지 추가
+                    
+                    if (response.audio) {  // 오디오가 있는 경우
+                        console.log('AI 응답 오디오 재생 시작');
+                        chatManager.isPlaying = true;  // 재생 중 플래그 설정
+                        live2dManager.setExpression('speaking');  // 'speaking' 표정 설정
+
+                        try {
+                            await live2dManager.playAudioWithLipSync(response.audio);  // 립싱크와 함께 오디오 재생
+                            console.log('AI 응답 오디오 재생 완료');
+                        } catch (error) {
+                            console.error('오디오 재생 오류:', error);
+                            // 재생 오류 시 사용자에게 알림
+                            chatManager.addMessage('system', '오디오 재생 중 오류가 발생했습니다.');
+                        } finally {
+                            live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
+                            chatManager.isPlaying = false;  // 재생 중 플래그 해제
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('녹음 처리 오류:', error);
+                
+                // 사용자에게 구체적인 오류 메시지 제공
+                const errorMessage = error.message || '오류가 발생했습니다. 다시 시도해주세요.';
+                chatManager.addMessage('system', errorMessage);
+            } finally {
+                // 상태 정리 및 UI 업데이트
+                live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
+                chatManager.isPlaying = false;  // 재생 중 플래그 해제
+                UIState.endProcessing(recordButton, '이야기하기');  // 처리 완료, UI 업데이트
             }
-        } catch (error) {
-            console.error('Error processing recording:', error);
-            
-            // 사용자에게 구체적인 오류 메시지 제공
-            const errorMessage = error.message || '오류가 발생했습니다. 다시 시도해주세요.';
-            chatManager.addMessage('system', errorMessage);
-        } finally {
-            // 상태 정리 및 UI 업데이트
-            live2dManager.setExpression('neutral');  // 'neutral' 표정 설정
-            chatManager.isPlaying = false;  // 재생 중 플래그 해제
-            UIState.endProcessing(recordButton, '이야기하기');  // 처리 완료, UI 업데이트
         }
+    } catch (error) {
+        console.error('녹음 시작/중지 오류:', error);
+        chatManager.addMessage('system', '오디오 시스템 오류: ' + error.message);
+        UIState.endProcessing(recordButton, '이야기하기');  // 오류 발생 시에도 UI 복구
     }
 }
 
