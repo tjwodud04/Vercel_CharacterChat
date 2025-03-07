@@ -208,7 +208,16 @@ class AudioManager {
             this.cleanupAudioStream();
             
             this.audioStream = stream;  // 오디오 스트림 저장
-            this.mediaRecorder = new MediaRecorder(stream);  // 미디어 레코더 생성
+            
+            // 미디어 레코더 생성 시 WAV 형식 지정 시도
+            try {
+                // WAV 형식으로 시도
+                this.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/wav' });
+            } catch (e) {
+                // 실패 시 기본 형식 사용
+                console.warn('WAV 형식이 지원되지 않아 기본 형식으로 녹음합니다.');
+                this.mediaRecorder = new MediaRecorder(stream);
+            }
             
             // 데이터 사용 가능할 때 이벤트 핸들러
             this.mediaRecorder.ondataavailable = (event) => {
@@ -275,9 +284,9 @@ class AudioManager {
     }
 
     getAudioBlob() {
-        // 오디오 청크로 Blob 생성
+        // 오디오 청크로 Blob 생성 - 항상 wav 형식 사용
         const blob = new Blob(this.audioChunks, {
-            type: this.mediaRecorder ? this.mediaRecorder.mimeType : 'audio/webm'  // MIME 타입 설정
+            type: 'audio/wav'  // 서버가 지원하는 WAV 형식으로 MIME 타입 고정
         });
         return blob;  // Blob 반환
     }
@@ -360,8 +369,12 @@ class ChatManager {
 
     async sendAudioToServer(audioBlob) {
         try {
+            // 오디오 Blob을 서버가 지원하는 형식으로 변환
+            // 서버가 지원하는 형식 중 'wav'로 명시적 설정
+            const wavBlob = new Blob([audioBlob], { type: 'audio/wav' });
+            
             const formData = new FormData();  // FormData 객체 생성
-            formData.append('audio', audioBlob, 'audio.webm');  // 오디오 Blob 추가
+            formData.append('audio', wavBlob, 'audio.wav');  // WAV 형식으로 오디오 추가
             formData.append('character', this.characterType);  // 캐릭터 정보 추가
 
             // 대화 컨텍스트 추가
