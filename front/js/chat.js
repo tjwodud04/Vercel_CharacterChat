@@ -513,7 +513,7 @@ class ChatManager {
                 message: error.message || '서버와 통신하는 중 오류가 발생했습니다.'
             };
         }
-    }
+    
 
             if (!response.ok) {  // 응답이 성공이 아닌 경우
                 const errorText = await response.text();  // 에러 텍스트 가져오기
