@@ -467,21 +467,53 @@ class ChatManager {
                 throw new Error('오디오 버퍼가 비어 있습니다.');
             }
             
-            // 서버에서 지원하는 형식으로 새 Blob 생성 (원래 형식 유지하되 type만 변경)
-            const wavBlob = new Blob([arrayBuffer], { type: 'audio/wav' });
-            console.log(`Converted blob type: ${wavBlob.type}, size: ${wavBlob.size} bytes`);
+            // 브라우저가 생성한 원본 형식을 유지하되, 필요한 경우 변환
+            let finalBlob = audioBlob;
+            
+            // 서버에서 지원하는 형식 목록
+            const supportedTypes = ['audio/flac', 'audio/m4a', 'audio/mp3', 'audio/mp4', 'audio/mpeg', 'audio/mpga', 'audio/oga', 'audio/ogg', 'audio/wav', 'audio/webm'];
+            
+            // 현재 Blob 형식이 지원되지 않는 경우
+            if (!supportedTypes.some(type => audioBlob.type.includes(type.split('/')[1]))) {
+                console.log('오디오 형식 변환 필요: ' + audioBlob.type);
+                finalBlob = new Blob([arrayBuffer], { type: 'audio/webm' });
+            }
+            
+            console.log(`Final blob type: ${finalBlob.type}, size: ${finalBlob.size} bytes`);
             
             const formData = new FormData();  // FormData 객체 생성
-            formData.append('audio', wavBlob, 'audio.wav');  // WAV 형식으로 오디오 추가
+            formData.append('audio', finalBlob, `audio.${finalBlob.type.split('/')[1]}`);  // 파일 확장자를 MIME 타입에 맞게 설정
             formData.append('character', this.characterType);  // 캐릭터 정보 추가
 
             // 대화 컨텍스트 추가
             formData.append('conversation', JSON.stringify(this.conversationHistory));
 
+            console.log('서버로 요청 전송 중...');
             const response = await fetch('/api/chat', {  // 서버 API 호출
                 method: 'POST',  // POST 메서드 사용
                 body: formData  // FormData를 요청 본문으로 설정
             });
+
+            console.log(`서버 응답 상태: ${response.status}`);
+            
+            if (!response.ok) {  // 응답이 성공이 아닌 경우
+                const errorText = await response.text();  // 에러 텍스트 가져오기
+                console.error('서버 오류 응답:', errorText);
+                throw new Error(`Server responded with ${response.status}: ${errorText}`);  // 에러 발생
+            }
+
+            const data = await response.json();  // 응답 데이터를 JSON으로 파싱
+            console.log('서버 응답 수신됨:', data);
+            return data;  // 데이터 반환
+        } catch (error) {
+            console.error('서버 통신 오류:', error);
+            // 에러 메시지를 구체적으로 반환
+            throw {
+                error: true,
+                message: error.message || '서버와 통신하는 중 오류가 발생했습니다.'
+            };
+        }
+    }
 
             if (!response.ok) {  // 응답이 성공이 아닌 경우
                 const errorText = await response.text();  // 에러 텍스트 가져오기
@@ -569,7 +601,11 @@ document.addEventListener('DOMContentLoaded', async () => {  // DOM 로드 완�
 
     const recordButton = document.getElementById('recordButton');  // 녹음 버튼 DOM 요소 가져오기
     if (recordButton) {
+        // 이벤트 리스너 추가 전 기존 리스너 제거 (중복 실행 방지)
+        recordButton.removeEventListener('click', handleRecording);
+        // 새 이벤트 리스너 등록
         recordButton.addEventListener('click', handleRecording);  // 녹음 버튼 클릭 이벤트 핸들러 등록
+        console.log('녹음 버튼 이벤트 리스너 등록 완료');
     } else {
         console.error('Record button not found in the DOM');
     }
