@@ -1,5 +1,7 @@
 # Live2D Interactive Avatar Project
 
+Brief Project Demo Intro : 
+
 https://github.com/user-attachments/assets/1b67882f-7ca8-4871-97ab-11de4ba86212
 
 This repository contains an interactive avatar project utilizing Live2D models and a web-based interface for real-time interaction.
@@ -11,16 +13,7 @@ This repository contains an interactive avatar project utilizing Live2D models a
 ├── api/                     # Backend API components
 ├── front/                   # Frontend files
 │   ├── css/                 # Stylesheets
-│   │   ├── main.css
-│   │   ├── style.css
 │   ├── js/                  # JavaScript files for frontend functionality
-│   │   ├── axios.min.js
-│   │   ├── chat.js
-│   │   ├── cubism4.min.js
-│   │   ├── haru.js
-│   │   ├── live2d.min.js
-│   │   ├── main.js
-│   │   ├── realtime.js
 │   ├── index.html           # Main webpage
 │   ├── haru.html            # Haru model-specific page
 │   ├── kei.html             # Kei model-specific page
@@ -63,22 +56,6 @@ This repository contains an interactive avatar project utilizing Live2D models a
    python realtime.py
    ```
 5. Open `index.html` in a browser to start interacting with the models.
-
-## 🎭 Models
-
-### Haru
-- Motion and physics data for expressive animations.
-- Integrated with Cubism 4 engine.
-
-### Kei
-- Includes vowel synchronization for speech animation.
-- Custom motion synchronizations.
-
-## 📌 Deployment
-This project is configured for deployment with Vercel. To deploy:
-```bash
-vercel
-```
 
 ## 📄 License
 This project follows the license defined in the repository. Ensure compliance before usage.
