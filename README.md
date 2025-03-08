@@ -32,8 +32,6 @@ This repository contains an interactive avatar project utilizing Live2D models a
 
 - **Live2D Integration**: Uses Live2D Cubism for animated character interactions.
 - **Web-based UI**: Interacts with models through HTML, CSS, and JavaScript.
-- **Real-time Communication**: Implements real-time chat and interactions.
-- **Backend Support**: Provides APIs for handling model behavior and user interactions.
 
 ## 🛠 Installation
 
