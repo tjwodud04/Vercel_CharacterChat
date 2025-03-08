@@ -1,5 +1,7 @@
 # Live2D Interactive Avatar Project
 
+https://github.com/user-attachments/assets/1b67882f-7ca8-4871-97ab-11de4ba86212
+
 This repository contains an interactive avatar project utilizing Live2D models and a web-based interface for real-time interaction.
 
 ## 📁 Project Structure
