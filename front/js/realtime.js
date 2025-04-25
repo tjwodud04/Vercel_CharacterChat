@@ -269,49 +269,41 @@ class ChatManager {
         this.isPlaying = false;
         this.conversationHistory = [];
         this.characterType = characterType;
+        this.messageContainer = document.createElement('div');
+        this.messageContainer.className = 'message-container';
+        document.querySelector('.realtime-container').appendChild(this.messageContainer);
         console.log('ChatManager initialized');
     }
 
     async sendAudioToServer(audioBlob) {
         try {
-            console.log('Sending audio data to server');
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (!apiKey) {
+                alert('OpenAI API 키가 설정되지 않았습니다. 메인 페이지로 이동합니다.');
+                window.location.href = 'index.html';
+                return null;
+            }
+
             const formData = new FormData();
+            formData.append('audio', audioBlob);
 
-            // 파일 이름과 확장자 명시적 지정
-            const audioFile = new File([audioBlob], 'audio.webm', {
-                type: 'audio/webm;codecs=opus'
-            });
-            formData.append('audio', audioFile);
-
-            const response = await fetch('http://localhost:8001/api/chat', {
-                method: 'POST',
-                body: formData,
-                // CORS 관련 설정 추가
-                mode: 'cors',
-                credentials: 'same-origin'
+            const response = await axios.post('/api/chat', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                    'X-API-KEY': apiKey
+                }
             });
 
-            if (!response.ok) {
-                console.error('Server response error:', response.status, response.statusText);
-                const errorText = await response.text();
-                console.error('Error details:', errorText);
-                throw new Error(`Server response error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('Server response received:', data);
-
-            if (data.user_text) {
-                this.addMessage('user', data.user_text);
-            }
-            if (data.ai_text) {
-                this.addMessage('ai', data.ai_text);
-            }
-
-            return data;
+            return response.data;
         } catch (error) {
-            console.error('Server communication error:', error);
-            throw error;
+            console.error('Error sending audio to server:', error);
+            if (error.response && error.response.status === 401) {
+                alert('API 키가 유효하지 않습니다. API 키를 다시 설정해주세요.');
+                window.location.href = 'index.html';
+            } else {
+                alert('서버 통신 중 오류가 발생했습니다.');
+            }
+            return null;
         }
     }
 
