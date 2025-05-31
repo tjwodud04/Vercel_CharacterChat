@@ -40,11 +40,6 @@ def haru():
 def kei():
     return render_template('kei.html')  # kei.html 템플릿 렌더링
 
-# 'realtime' 페이지 경로 핸들러
-@app.route('/realtime')
-def realtime():
-    return render_template('realtime.html')  # realtime.html 템플릿 렌더링
-
 # 모델 파일 제공 경로 핸들러
 @app.route('/model/<path:filename>')
 def serve_model(filename):
